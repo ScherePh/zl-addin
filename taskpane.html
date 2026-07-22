@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZL-Unterlagen</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css">
+<script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<style>
+  :root{
+    --bg:#ffffff; --bg2:#f7f7f5; --tx:#1a1a19; --tx2:#6b6b68;
+    --bd:#e8e8e4; --bd2:#d5d5d0;
+    --ok-bg:#e4f5ea; --ok-tx:#137a3e; --ok-bd:#9dd8b4;
+    --font-sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--tx);font-family:var(--font-sans)}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+  .cb-row:hover{filter:brightness(0.97)}
+  .cat-hdr:hover{filter:brightness(0.96)}
+  button{font-family:inherit}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const {useState,createElement:h}=React;
+
+const DOCS=[
+  {id:0,kat:"Ausweis",dok:"Identitätskarte, Pass oder Ausländerausweis",was:"Ein amtliches Dokument. Es zeigt, wer Sie sind. Es zeigt auch, ob Sie in der Schweiz leben dürfen.",warum:"Wir müssen prüfen, wer Sie sind. Wir müssen auch prüfen: Haben Sie ein Recht auf Leistungen in der Schweiz?",wo:"Sie bekommen Identitätskarte/Pass bei Ihrer Gemeinde oder im Stadthaus. Den Ausländerausweis haben Sie von der Migrationsbehörde bekommen."},
+  {id:1,kat:"Ausweis",dok:"Vollmacht",was:"Ein Dokument mit Ihrer Originalunterschrift. Damit erlauben Sie einer anderen Person, für Sie zu handeln.",warum:"Wir dürfen nur mit Ihnen oder einer Person mit Vollmacht sprechen.",wo:"Sie bekommen das Formular von der Organisation, die Sie unterstützt. Sie müssen das Original einreichen. Eine Kopie reicht nicht."},
+  {id:2,kat:"Wohnen",dok:"Mietvertrag",was:"Der Vertrag zwischen Ihnen und der Person oder Firma, die Ihnen die Wohnung vermietet.",warum:"Die Miete ist eine Ausgabe. Wir rechnen die Miete bei Ihren Leistungen mit.",wo:"In Ihren Unterlagen. Bei Verlust: Kopie bei Vermieterin oder Vermieter verlangen."},
+  {id:3,kat:"Wohnen",dok:"Letztes Mietzinsänderungsschreiben",was:"Ein Schreiben von Ihrem Vermieter. Es zeigt die letzte Änderung Ihrer Miete.",warum:"Die tatsächliche Miete kann sich seit dem Vertrag geändert haben.",wo:"In Ihren Unterlagen. Oder Sie fragen bei Vermieterin oder Vermieter nach."},
+  {id:4,kat:"Wohnen",dok:"Aktueller Zahlungsbeleg",was:"Ein Kontoauszug oder ähnliches Dokument. Es zeigt, dass Sie Ihre Miete bezahlt haben.",warum:"Es bestätigt, dass Sie die angegebene Miete wirklich bezahlen.",wo:"Im Kontoauszug, E-Banking, PostFinance-App oder als Papierbeleg bei der Post."},
+  {id:5,kat:"Wohnen",dok:"Konto Mietkaution per 31. Dezember des letzten Jahres",was:"Ein Sperrkonto mit Ihrer Mietkaution (meist 2–3 Monatsmieten). Falls Sie bei einer Wohngenossenschaft wohnen: die Anteilscheine der Genossenschaft.",warum:"Mietkaution und Genossenschaftsanteile sind Vermögen. Wir rechnen sie bei der Berechnung mit.",wo:"Saldoausweis von der Bank, bei der Ihre Kaution liegt. Anteilscheine erhalten Sie von Ihrer Wohngenossenschaft."},
+  {id:6,kat:"Wohnen",dok:"Heimrechnung",was:"Die aktuelle Rechnung Ihres Heims für Unterkunft, Verpflegung und Betreuung.",warum:"Heimkosten sind anerkannte Ausgaben. Wir ziehen sie von Ihren Einnahmen ab.",wo:"Direkt vom Heim."},
+  {id:7,kat:"Wohnen",dok:"Heimdepot",was:"Ein Betrag, den Sie beim Einzug ins Heim hinterlegt haben – ähnlich wie eine Kaution.",warum:"Das Depot ist Vermögen. Wir rechnen es bei der Berechnung mit.",wo:"Die Zahlungsbestätigung erhalten Sie beim Heim oder beim Einzug."},
+  {id:8,kat:"Bank & Post",dok:"Zins- und Saldobelege aller Konten per 31. Dezember des letzten Jahres",was:"Offizielle Bankdokumente. Sie zeigen Ihr Guthaben und Ihre Zinsen am Jahresende.",warum:"Ersparnisse und Zinserträge sind Vermögen und Einnahmen.",wo:"Von Ihrer Bank per Post, im E-Banking oder am Schalter. Für Auslandskonten direkt bei der Bank anfragen."},
+  {id:9,kat:"Bank & Post",dok:"Detaillierte Kontoauszüge der letzten drei Monate",was:"Vollständige Kontoauszüge Ihres Hauptkontos, auf das Rente oder Lohn eingehen. Auszüge müssen alle Ein- und Auszahlungen zeigen.",warum:"Wir überprüfen Ihre laufenden Ein- und Auszahlungen und bestätigen damit die Angaben, die Sie im Formular gemacht haben.",wo:"Im E-Banking ausdrucken, über die PostFinance-App oder am Bankschalter ausdrucken lassen."},
+  {id:10,kat:"Bank & Post",dok:"Bankdepotauszug per 31. Dezember des letzten Jahres",was:"Ein Dokument mit dem Wert Ihrer Aktien, Fonds und Obligationen am Jahresende.",warum:"Wertschriften sind Vermögen und zählen in die ZL-Berechnung.",wo:"Von Ihrer Bank (meist automatisch). Oder im E-Banking abrufen."},
+  {id:11,kat:"AHV / IV",dok:"AHV-Rentenverfügung",was:"Der offizielle Entscheid der AHV über Ihre Rente. Er zeigt den Betrag und den Beginn.",warum:"Die AHV-Rente ist Ihr Haupteinkommen und die Grundlage für die ZL-Berechnung.",wo:"Von der AHV-Ausgleichskasse. Bei Verlust: neue Kopie bei der Ausgleichskasse anfordern."},
+  {id:12,kat:"AHV / IV",dok:"IV-Verfügung",was:"Der Entscheid der IV über Ihre Invalidenrente. Wichtig: Wir brauchen alle Seiten.",warum:"Die IV-Rente ist eine Einnahme. Wir müssen alle Einnahmen kennen.",wo:"Die IV-Stelle schickt es Ihnen. Sie können eine Kopie über die IV-Stelle des Kantons bekommen."},
+  {id:13,kat:"AHV / IV",dok:"Hilflosenentschädigung: Verfügung",was:"Ein Entscheid der AHV oder IV über eine finanzielle Entschädigung bei Hilflosigkeit.",warum:"Die Entschädigung ist eine Einnahme. Wir müssen alle Einnahmen kennen.",wo:"Sie bekommen es von der AHV-Stelle oder IV-Stelle. Sie haben es, falls Sie diese Leistung beziehen."},
+  {id:14,kat:"AHV / IV",dok:"Taggeldabrechnung der Arbeitslosenversicherung",was:"Eine Abrechnung der Arbeitslosenkasse. Sie zeigt Ihre ausbezahlten Taggelder.",warum:"ALV-Taggelder sind Einkommen.",wo:"Von Ihrer Arbeitslosenkasse (meist monatlich zugestellt)."},
+  {id:15,kat:"Versicherungen",dok:"Krankenkassenpolice (Grund- und Zusatzversicherung)",was:"Das Versicherungsdokument Ihrer Krankenkasse. Es zeigt, was versichert ist und wie viel Sie bezahlen. Achtung: Die Prämienrechnung allein reicht nicht. Wir brauchen die Police.",warum:"Krankenkassenprämien werden als Ausgabe berücksichtigt.",wo:"Sie bekommen es von Ihrer Krankenkasse. Die Kasse schickt es jährlich. Oder Sie können es online im Kundenportal abrufen."},
+  {id:16,kat:"Versicherungen",dok:"Unfallversicherung: Rentenverfügung oder Kapitalauszahlung",was:"Ein Entscheid der SUVA oder einer anderen Unfallversicherung über eine Rente oder Auszahlung.",warum:"Unfallrenten sind Einkommen. Kapitalauszahlungen sind Vermögen.",wo:"Von der SUVA oder Ihrer privaten Unfallversicherung."},
+  {id:17,kat:"Versicherungen",dok:"Lebensversicherung: Police, Rückkaufswert, Auszahlungen",was:"Der Versicherungsvertrag sowie Dokumente über den aktuellen Wert und mögliche Auszahlungen.",warum:"Der Rückkaufswert ist Vermögen. Renten und Auszahlungen sind Einnahmen.",wo:"Von Ihrer Lebensversicherungsgesellschaft."},
+  {id:18,kat:"Versicherungen",dok:"Pensionskasse: Rentenbescheid, Vorsorgeausweis, Kapitalauszahlung",was:"Dokumente Ihrer Pensionskasse: der Rentenbescheid sagt, wie viel Rente Sie bekommen, der Vorsorgeausweis zeigt Ihr angespartes Guthaben. Kapitalauszahlungen belegen, ob Sie Geld aus der Pensionskasse als Einmalbetrag bezogen haben.",warum:"BVG-Renten sind Einnahmen. Kapitalien sind Vermögen. Beides ist Grundlage für die ZL-Berechnung.",wo:"Von Ihrer Pensionskasse. Den Vorsorgeausweis erhalten Sie automatisch einmal pro Jahr per Post."},
+  {id:19,kat:"Versicherungen",dok:"Freizügigkeitskonto oder Freizügigkeitspolice",was:"Ein Konto oder eine Police mit Vorsorgegeldern bei einem Stellenwechsel.",warum:"Es ist Vermögen und damit Grundlage für die ZL-Berechnung.",wo:"Von der Bank oder Versicherung, bei der das Geld liegt. Fragen Sie nach dem Jahressaldo per 31. Dezember."},
+  {id:20,kat:"Steuern",dok:"Letzte vollständige Steuererklärung",was:"Ihre Steuererklärung mit Wertschriftenverzeichnis, Guthabenverzeichnis und Schuldenverzeichnis.",warum:"Sie gibt eine Übersicht über Vermögen, Schulden und Einkommen.",wo:"In Ihren Unterlagen. Kopie beim kantonalen Steueramt erhältlich."},
+  {id:21,kat:"Erbschaft & Schenkung",dok:"Belege über erhaltene oder unverteilte Erbschaften",was:"Dokumente zu Erbschaften, die Sie erhalten haben oder die noch nicht aufgeteilt wurden.",warum:"Erbschaften sind Vermögen.",wo:"Beim Notariat, Willensvollstrecker oder aus dem Nachlass."},
+  {id:22,kat:"Erbschaft & Schenkung",dok:"Belege über Schenkungen und Erbvorbezüge",was:"Belege über Vermögen, das Sie verschenkt oder vorzeitig an Erben weitergegeben haben. Ebenso Schenkungen, die Sie erhalten haben.",warum:"Verschenktes oder weitergegebenes Vermögen wird trotzdem angerechnet. Wir müssen hohe Vermögensrückgänge prüfen.",wo:"Den Schenkungsvertrag haben Sie in Ihren Unterlagen. Er ist meist notariell beglaubigt. Angaben dazu finden sich auch in Ihrer Steuererklärung der betreffenden Jahre."},
+  {id:23,kat:"Immobilien",dok:"Grundbuchauszug",was:"Das ist ein offizielles Register über Eigentum an Liegenschaften. Liegenschaften sind Häuser und Grundstücke.",warum:"Es belegt Grundeigentum, Hypotheken und Nutzungsrechte.",wo:"Sie bekommen es beim zuständigen Grundbuchamt."},
+  {id:24,kat:"Immobilien",dok:"Aktuelle Verkehrswertschätzung",was:"Das ist eine Schätzung des marktüblichen Werts einer Liegenschaft. Liegenschaften sind Häuser und Grundstücke.",warum:"Der Verkehrswert ist massgebend für die Vermögensanrechnung.",wo:"Sie bekommen es von einer zugelassenen Schätzungsperson. Oder von Ihrer Bank. Oder von einer Immobilienfachperson."},
+  {id:25,kat:"Immobilien",dok:"Bankbelege über Hypotheken",was:"Belege Ihrer Bank über bestehende Hypotheken auf der Liegenschaft.",warum:"Hypotheken sind Schulden und werden vom Vermögen abgezogen.",wo:"Von Ihrer Bank."},
+  {id:26,kat:"Immobilien",dok:"Steuerliche Neubewertung",was:"Der amtliche Steuerwert Ihrer Liegenschaft, wie er in der Steuererklärung ausgewiesen wird.",warum:"Wir nutzen ihn als Grundlage für die Vermögensberechnung.",wo:"Aus Ihrer Steuererklärung oder beim kantonalen Steueramt."},
+  {id:27,kat:"Arbeit",dok:"Arbeitsvertrag und letzter Lohnausweis",was:"Ihr Vertrag mit dem Arbeitgeber und die letzte monatliche Lohnabrechnung.",warum:"Erwerbseinkommen wird als Einnahme angerechnet.",wo:"Vom Arbeitgeber. Den Lohnausweis des Vorjahres können Sie beim Arbeitgeber anfordern."},
+  {id:28,kat:"Arbeit",dok:"Bestätigung der Erwerbsaufgabe",was:"Ein Nachweis, dass Sie Ihre Arbeit aufgegeben haben (z.B. Kündigung oder Abmeldung bei der Ausgleichskasse).",warum:"Wir müssen wissen, dass kein Erwerbseinkommen mehr fliesst.",wo:"Kündigungsschreiben in Ihren Unterlagen oder Bestätigung der AHV-Ausgleichskasse."},
+  {id:29,kat:"Scheidung / Unterhalt",dok:"Scheidungsurteil oder Trennungsvereinbarung",was:"Ein rechtliches Dokument, das Scheidung, Unterhaltsregelungen und Sorgerechtsregelungen festhält.",warum:"Unterhaltszahlungen beeinflussen das anrechenbare Einkommen (bezahlt und empfangen).",wo:"In Ihren persönlichen Unterlagen oder beim zuständigen Gericht."},
+  {id:30,kat:"Sonstiges",dok:"Darlehensvertrag und Rückzahlungsbelege",was:"Ein schriftlicher Vertrag über geliehenes Geld und Nachweise über Rückzahlungen.",warum:"Darlehen können als Schulden abgezogen werden. Erhaltene Darlehen sind Vermögen.",wo:"In Ihren Unterlagen. Gutschriftanzeige der Bank bei Eingang."},
+  {id:31,kat:"Sonstiges",dok:"Fahrzeugausweis und Kilometerstand",was:"Der Fahrzeugausweis Ihres Autos und der aktuelle Kilometerstand.",warum:"Fahrzeuge werden als Vermögen angerechnet.",wo:"Fahrzeugausweis liegt im Fahrzeug. Kilometerstand direkt ablesen."},
+  {id:32,kat:"Sonstiges",dok:"Ausländische Renten: Rentenbescheid und Auszahlungsbeleg",was:"Offizielle Dokumente aus dem Ausland über Ihre dortige Rente.",warum:"Ausländische Renten sind Einnahmen und müssen vollständig deklariert werden.",wo:"Von der jeweiligen ausländischen Rentenbehörde. Manchmal ist eine Übersetzung nötig (AZL informiert Sie)."},
+];
+const CATS=[...new Set(DOCS.map(d=>d.kat))];
+const PAL={"Ausweis":{l:"#E6F1FB",m:"#378ADD",d:"#0C447C"},"Wohnen":{l:"#E1F5EE",m:"#1D9E75",d:"#085041"},"Bank & Post":{l:"#EAF3DE",m:"#639922",d:"#27500A"},"AHV / IV":{l:"#EEEDFE",m:"#7F77DD",d:"#3C3489"},"Versicherungen":{l:"#FAECE7",m:"#D85A30",d:"#712B13"},"Steuern":{l:"#FAEEDA",m:"#EF9F27",d:"#633806"},"Erbschaft & Schenkung":{l:"#FBEAF0",m:"#D4537E",d:"#72243E"},"Immobilien":{l:"#F1EFE8",m:"#888780",d:"#444441"},"Arbeit":{l:"#DCF5ED",m:"#0F9E71",d:"#085038"},"Scheidung / Unterhalt":{l:"#FCEBEB",m:"#E24B4A",d:"#791F1F"},"Sonstiges":{l:"#F1EFE8",m:"#B4B2A9",d:"#5F5E5A"}};
+const ICO={"Ausweis":"ti-user","Wohnen":"ti-home","Bank & Post":"ti-credit-card","AHV / IV":"ti-heart","Versicherungen":"ti-shield","Steuern":"ti-receipt","Erbschaft & Schenkung":"ti-star","Immobilien":"ti-building","Arbeit":"ti-briefcase","Scheidung / Unterhalt":"ti-scale","Sonstiges":"ti-dots"};
+
+// Tag of the content control in the Word template that marks where the list goes.
+// If no such content control exists, the list is inserted at the current cursor position.
+const ANCHOR_TAG="ZL-Unterlagen";
+
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function App(){
+  const[sel,setSel]=useState(new Set());
+  const[closed,setClosed]=useState(new Set(CATS.slice(1)));   // start with only first category open
+  const[mode,setMode]=useState("full");   // "full" = mit Erklärungstext, "titel" = nur Dokumentname
+  const[msg,setMsg]=useState(null);        // {type:'ok'|'err', text}
+  const[busy,setBusy]=useState(false);
+  const inWord=typeof window.Office!=="undefined" && Office.context && Office.context.host==="Word";
+
+  const toggle=id=>setSel(s=>{const n=new Set(s);n.has(id)?n.delete(id):n.add(id);return n;});
+  const toggleCat=k=>setClosed(s=>{const n=new Set(s);n.has(k)?n.delete(k):n.add(k);return n;});
+  const selDocs=DOCS.filter(d=>sel.has(d.id));
+
+  const lineFor=d=> mode==="full" ? `${d.dok}. ${d.was} ${d.warum} ${d.wo}` : d.dok;
+  const plain=selDocs.map(d=>`• ${lineFor(d)}`).join('\n');
+  const html=`<ul style="margin:0;padding-left:1.4em">${selDocs.map(d=> mode==="full"
+      ?`<li><b>${esc(d.dok)}.</b> ${esc(d.was)} ${esc(d.warum)} ${esc(d.wo)}</li>`
+      :`<li>${esc(d.dok)}</li>`).join('')}</ul>`;
+
+  const flash=(type,text)=>{setMsg({type,text});setTimeout(()=>setMsg(null),2600);};
+
+  // ---- Insert directly into the Word letter -----------------------------
+  const insertIntoLetter=async()=>{
+    if(!selDocs.length)return;
+    if(!inWord){flash('err','Nur in Word verfügbar. Nutzen Sie hier «Kopieren».');return;}
+    setBusy(true);
+    try{
+      await Word.run(async(context)=>{
+        // 1) Try to find the anchor content control in the template.
+        const ccs=context.document.contentControls.getByTag(ANCHOR_TAG);
+        ccs.load('items');
+        await context.sync();
+
+        let startRange;
+        if(ccs.items.length>0){
+          const cc=ccs.items[0];
+          cc.clear();                                   // leert den Platzhalter
+          startRange=cc.getRange(Word.RangeLocation.start);
+        }else{
+          // 2) Fallback: insert at the current cursor position.
+          startRange=context.document.getSelection();
+        }
+
+        // Insert each document as its own bulleted paragraph.
+        let anchor=startRange;
+        for(let i=0;i<selDocs.length;i++){
+          const d=selDocs[i];
+          const para=anchor.insertParagraph(lineFor(d),Word.InsertLocation.after);
+          try{para.styleBuiltIn=Word.BuiltInStyleName.listBullet;}catch(e){/* Stil evtl. nicht vorhanden */}
+          if(mode==="full"){
+            // Dokumentnamen fett hervorheben.
+            const found=para.search(d.dok,{matchCase:true,ignorePunct:false});
+            found.load('items');
+            await context.sync();
+            if(found.items.length>0){found.items[0].font.bold=true;}
+          }
+          anchor=para.getRange(Word.RangeLocation.after);
+        }
+        await context.sync();
+      });
+      flash('ok',`${selDocs.length} Dokument(e) eingefügt`);
+    }catch(err){
+      console.error(err);
+      flash('err','Einfügen fehlgeschlagen – bitte «Kopieren» nutzen.');
+    }finally{setBusy(false);}
+  };
+
+  // ---- Clipboard fallback ----------------------------------------------
+  const copy=async()=>{
+    if(!selDocs.length)return;
+    try{
+      await navigator.clipboard.write([new ClipboardItem({
+        'text/html':new Blob([html],{type:'text/html'}),
+        'text/plain':new Blob([plain],{type:'text/plain'})
+      })]);
+      flash('ok','In Zwischenablage kopiert');
+    }catch(e){
+      try{await navigator.clipboard.writeText(plain);flash('ok','Kopiert');}
+      catch(e2){flash('err','Kopieren nicht möglich');}
+    }
+  };
+
+  const btn=(enabled,active)=>({
+    display:"inline-flex",alignItems:"center",gap:6,fontSize:13,fontWeight:500,
+    padding:"6px 14px",cursor:enabled?"pointer":"default",borderRadius:6,
+    border:`0.5px solid ${active?"var(--ok-bd)":enabled?"#378ADD":"var(--bd)"}`,
+    background:active?"var(--ok-bg)":enabled?"#E6F1FB":"transparent",
+    color:active?"var(--ok-tx)":enabled?"#0C447C":"var(--tx2)",
+    opacity:enabled?1:0.45,transition:"all .15s"
+  });
+
+  return h('div',{style:{fontSize:14}},
+    h('h1',{className:"sr-only"},"Textbausteine ZL-Dokumente"),
+
+    // Header
+    h('div',{style:{padding:"12px 14px",borderBottom:"0.5px solid var(--bd)",background:"var(--bg2)"}},
+      h('div',{style:{fontSize:15,fontWeight:600,color:"var(--tx)"}},"ZL-Unterlagen einfügen"),
+      h('div',{style:{fontSize:12,color:"var(--tx2)",marginTop:2}},
+        sel.size>0?`${sel.size} von ${DOCS.length} ausgewählt`:`${DOCS.length} Dokumente verfügbar`)
+    ),
+
+    // Action bar
+    h('div',{style:{position:"sticky",top:0,zIndex:5,padding:"10px 14px",borderBottom:"0.5px solid var(--bd)",background:"var(--bg)",display:"flex",flexDirection:"column",gap:8}},
+      h('button',{onClick:insertIntoLetter,disabled:!selDocs.length||busy,style:{...btn(!!selDocs.length&&!busy,false),justifyContent:"center",width:"100%",fontSize:14,padding:"9px 14px"}},
+        h('i',{className:"ti ti-file-import",style:{fontSize:16}}),
+        busy?"Wird eingefügt…":"In Brief einfügen"
+      ),
+      h('div',{style:{display:"flex",gap:8}},
+        h('button',{onClick:copy,disabled:!selDocs.length,style:{...btn(!!selDocs.length,false),flex:1,justifyContent:"center"}},
+          h('i',{className:"ti ti-copy",style:{fontSize:14}}),"Kopieren"),
+        h('button',{onClick:()=>setSel(new Set()),disabled:!sel.size,style:{...btn(!!sel.size,false),justifyContent:"center",background:"transparent",border:"0.5px solid var(--bd2)",color:"var(--tx2)"}},
+          "Löschen")
+      ),
+      // mode toggle
+      h('div',{style:{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"var(--tx2)"}},
+        h('span',null,"Einfügen als:"),
+        h('label',{style:{display:"flex",alignItems:"center",gap:4,cursor:"pointer"}},
+          h('input',{type:"radio",name:"mode",checked:mode==="full",onChange:()=>setMode("full")}),"Mit Erklärung"),
+        h('label',{style:{display:"flex",alignItems:"center",gap:4,cursor:"pointer"}},
+          h('input',{type:"radio",name:"mode",checked:mode==="titel",onChange:()=>setMode("titel")}),"Nur Titel")
+      ),
+      msg&&h('div',{style:{fontSize:12,padding:"5px 8px",borderRadius:5,
+        background:msg.type==='ok'?"var(--ok-bg)":"#fdecea",
+        color:msg.type==='ok'?"var(--ok-tx)":"#a3261d"}},
+        h('i',{className:`ti ti-${msg.type==='ok'?'check':'alert-triangle'}`,style:{fontSize:13,marginRight:5}}),msg.text)
+    ),
+
+    // Category list
+    h('div',null,
+      ...CATS.map(kat=>{
+        const p=PAL[kat]||PAL["Sonstiges"];
+        const docs=DOCS.filter(d=>d.kat===kat);
+        const open=!closed.has(kat);
+        const cnt=docs.filter(d=>sel.has(d.id)).length;
+        return h('div',{key:kat,style:{borderBottom:"0.5px solid var(--bd)"}},
+          h('div',{onClick:()=>toggleCat(kat),className:"cat-hdr",style:{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 12px",cursor:"pointer",borderLeft:`3px solid ${p.m}`,background:open?p.l+"55":"transparent"}},
+            h('div',{style:{display:"flex",alignItems:"center",gap:6}},
+              h('i',{className:`ti ${ICO[kat]||"ti-file"}`,style:{fontSize:14,color:p.d}}),
+              h('span',{style:{fontSize:12.5,fontWeight:600,color:p.d}},kat),
+              cnt>0&&h('span',{style:{fontSize:10,padding:"1px 6px",background:p.m,color:"#fff",borderRadius:99,lineHeight:1.7}},cnt)
+            ),
+            h('i',{className:`ti ti-chevron-${open?"up":"down"}`,style:{fontSize:13,color:p.d}})
+          ),
+          open&&h('div',null,...docs.map(doc=>
+            h('label',{key:doc.id,className:"cb-row",style:{display:"flex",alignItems:"flex-start",gap:9,padding:"7px 12px 7px 15px",cursor:"pointer",borderLeft:`3px solid ${sel.has(doc.id)?p.m:"transparent"}`,background:sel.has(doc.id)?p.l+"44":"transparent"}},
+              h('input',{type:"checkbox",checked:sel.has(doc.id),onChange:()=>toggle(doc.id),style:{marginTop:2,accentColor:p.m,flexShrink:0,width:15,height:15}}),
+              h('span',{style:{fontSize:12.5,color:"var(--tx)",lineHeight:1.4}},doc.dok)
+            )
+          ))
+        );
+      })
+    ),
+    h('div',{style:{padding:"10px 14px",fontSize:11,color:"var(--tx2)",lineHeight:1.5}},
+      inWord?"Cursor im Brief an die gewünschte Stelle setzen, dann «In Brief einfügen».":
+      "Vorschau-Modus (nicht in Word geöffnet). «Kopieren» funktioniert hier bereits.")
+  );
+}
+
+// Boot: Office.onReady stellt sicher, dass Word bereit ist; im Browser rendern wir trotzdem.
+function boot(){ReactDOM.createRoot(document.getElementById("root")).render(h(App));}
+if(typeof window.Office!=="undefined"){Office.onReady(()=>boot());}else{boot();}
+</script>
+</body>
+</html>
