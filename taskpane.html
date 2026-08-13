@@ -149,7 +149,42 @@ function App(){
 
   const flash=(type,text)=>{setMsg({type,text});setTimeout(()=>setMsg(null),2800);};
 
-  // ---------- Plain-Text (für Fallback-Copy) ----------
+  // ---------- HTML-Baustein für Word (auch von Copy verwendet) ----------
+  // Ein einziger HTML-Block pro Einfügung.
+  // HANG = Position, an die ein Tabulatorsprung in einer metrischen Word-Vorlage
+  // standardmässig springt (Standard-Tabstopp 1.25 cm). Titel nutzen dieselbe
+  // Distanz als hängenden Einzug, die Beschreibung als normalen linken Einzug,
+  // damit beide bündig unter dem Text (nicht unter dem Kästchen) beginnen.
+  const HANG = "1.25cm";
+  const buildInsertHtml=()=>{
+    const P_TITLE=`font-family:Arial;font-size:11pt;font-weight:bold;margin:2pt 0 0 ${HANG};text-indent:-${HANG}`;
+    const P_DESC =`font-family:Arial;font-size:9pt;font-style:italic;margin:2pt 0 8pt ${HANG}`;
+    // Vollbreite Linie: ein <hr> statt eines CSS-Absatzrahmens. Word wandelt <hr>
+    // zuverlässig in eine echte Absatzlinie über die volle Spaltenbreite um; ein
+    // border-bottom auf einem <p> wurde von Word im Kontext des Platzhalter-Feldes
+    // nur als schmale Zeichen-Unterstreichung übernommen.
+    const HR = `border:none;border-top:0.75pt solid #000000;margin:2pt 0 6pt 0`;
+    return grouped.map((g,gi)=>{
+      const spaceTop = gi===0 ? 0 : 12;
+      const head=`<p style="font-family:Arial;font-size:11pt;font-weight:bold;margin:${spaceTop}pt 0 0 0">${esc(g.kat)}</p>`;
+      const line=`<hr size="1" noshade color="#000000" style="${HR}">`;
+      const body=g.docs.map(d=>{
+        // Kästchen, ein Leerzeichen, ein echter Tabulatorsprung, dann der Titel.
+        const t=`<p style="${P_TITLE}">☐ \t${esc(d.dok)}</p>`;
+        const b=mode==="full" ? `<p style="${P_DESC}">${esc(d.text)}</p>` : "";
+        return t+b;
+      }).join("");
+      return head+line+body;
+    }).join("");
+  };
+
+  // Erwartete Anzahl Absätze für die Vollständigkeits-Prüfung nach dem Einfügen
+  // (Kategorie-Überschrift + Linie, pro Dokument Titel [+ Beschreibung]).
+  const expectedParaCount = grouped.reduce(
+    (sum,g)=> sum + 2 + g.docs.length*(mode==="full"?2:1), 0
+  );
+
+    // ---------- Plain-Text (für Fallback-Copy) ----------
   const buildPlain=()=>{
     const lines=[];
     grouped.forEach((g,gi)=>{
@@ -157,95 +192,53 @@ function App(){
       lines.push(g.kat);
       lines.push("─".repeat(Math.max(20,g.kat.length)));
       g.docs.forEach(d=>{
-        lines.push("☐  "+d.dok);
-        if(mode==="full")lines.push("    "+d.text);
+        lines.push("☐ \t"+d.dok);
+        if(mode==="full")lines.push("\t"+d.text);
       });
     });
     return lines.join("\n");
   };
-  // ---------- HTML (für Clipboard mit Formatierung) ----------
-  const buildHtml=()=>{
-    return grouped.map(g=>{
-      const items=g.docs.map(d=>{
-        const body=mode==="full" ? `<p style="margin:2px 0 8px 20px;font-style:italic;font-size:9pt">${esc(d.text)}</p>` : "";
-        return `<p style="font-weight:bold;margin:6px 0 0 0">☐&nbsp;&nbsp;${esc(d.dok)}</p>${body}`;
-      }).join("");
-      return `<p style="font-weight:bold;border-bottom:1px solid #000;padding-bottom:2px;margin:14px 0 6px 0">${esc(g.kat)}</p>${items}`;
-    }).join("");
-  };
 
-  // ---------- Einfügen in Word ----------
+// ---------- Einfügen in Word ----------
   const insertIntoLetter=async()=>{
     if(!grouped.length)return;
     if(!inWord){flash('err','Nur in Word verfügbar. Nutzen Sie hier «Kopieren».');return;}
     setBusy(true);
     try{
+      const html=buildInsertHtml();
       await Word.run(async(context)=>{
-        // 1) Anker-Inhaltssteuerelement suchen
         const ccs=context.document.contentControls.getByTag(ANCHOR_TAG);
         ccs.load('items');
         await context.sync();
 
-        let anchor;
-        if(ccs.items.length>0){
-          const cc=ccs.items[0];
-          cc.clear();
-          anchor=cc.getRange(Word.RangeLocation.start);
+        const cc = ccs.items.length>0 ? ccs.items[0] : null;
+        let insertedRange;
+        if(cc){
+          insertedRange = cc.insertHtml(html, Word.InsertLocation.replace);
         }else{
-          anchor=context.document.getSelection();
-        }
-
-        // 2) Pro Kategorie: Überschrift + Bullets + Beschreibungen
-        for(let gi=0; gi<grouped.length; gi++){
-          const g=grouped[gi];
-
-          // Kategorie-Überschrift
-          const head=anchor.insertParagraph(g.kat, Word.InsertLocation.after);
-          try{head.styleBuiltIn=Word.BuiltInStyleName.normal;}catch(e){}
-          head.font.bold=true;
-          head.font.size=11;
-          // Vollbreite-Linie unter der Überschrift (WordApi 1.7+, sonst Fallback)
-          try{
-            const b=head.getBorder(Word.BorderLocation.bottom);
-            b.type=Word.BorderType.single;
-            b.width=Word.BorderWidth.pt050;
-            b.color="#000000";
-          }catch(e){
-            // Fallback: wenigstens Text unterstreichen
-            head.font.underline=Word.UnderlineType.single;
-          }
-          // Etwas Abstand
-          try{
-            head.paragraphFormat.spaceBefore = gi===0 ? 6 : 12;
-            head.paragraphFormat.spaceAfter  = 4;
-          }catch(e){}
-          anchor=head.getRange(Word.RangeLocation.after);
-
-          // Dokumente
-          for(let di=0; di<g.docs.length; di++){
-            const d=g.docs[di];
-
-            // Titel als normaler Absatz mit Kästchen-Prefix, fett
-            const title=anchor.insertParagraph("☐  "+d.dok, Word.InsertLocation.after);
-            try{title.styleBuiltIn=Word.BuiltInStyleName.normal;}catch(e){}
-            title.font.bold=true;
-            title.font.italic=false;
-            title.font.size=11;
-            anchor=title.getRange(Word.RangeLocation.after);
-
-            // Beschreibung (kursiv, 9pt), leicht eingerückt; nur im Voll-Modus
-            if(mode==="full"){
-              const desc=anchor.insertParagraph(d.text, Word.InsertLocation.after);
-              try{desc.styleBuiltIn=Word.BuiltInStyleName.normal;}catch(e){}
-              desc.font.italic=true;
-              desc.font.bold=false;
-              desc.font.size=9;
-              try{desc.paragraphFormat.leftIndent=20; desc.paragraphFormat.spaceAfter=6;}catch(e){}
-              anchor=desc.getRange(Word.RangeLocation.after);
-            }
-          }
+          const selRange = context.document.getSelection();
+          insertedRange = selRange.insertHtml(html, Word.InsertLocation.after);
         }
         await context.sync();
+
+        // Vollständigkeits-Check: Word's HTML-Einfügung kann beim allerersten
+        // Aufruf in einer Sitzung unvollständig ausfallen (bekannter Word/
+        // Office.js-Effekt). Ist die Absatzzahl zu niedrig, wird automatisch
+        // einmal nachgelegt, bevor der Nutzer etwas merkt.
+        const paras = insertedRange.paragraphs;
+        paras.load('items');
+        await context.sync();
+
+        if(paras.items.length < expectedParaCount){
+          if(cc){
+            cc.insertHtml(html, Word.InsertLocation.replace);
+          }else{
+            insertedRange.delete();
+            const selRange2 = context.document.getSelection();
+            selRange2.insertHtml(html, Word.InsertLocation.after);
+          }
+          await context.sync();
+        }
       });
       flash('ok', `Eingefügt: ${grouped.length} Kategorie(n), ${selDocs.length} Dokument(e)`);
     }catch(err){
@@ -257,7 +250,7 @@ function App(){
   // ---------- Copy (HTML + Plain) ----------
   const copy=async()=>{
     if(!grouped.length)return;
-    const html=buildHtml();
+    const html=buildInsertHtml();
     const plain=buildPlain();
     try{
       await navigator.clipboard.write([new ClipboardItem({
@@ -352,4 +345,3 @@ if(typeof window.Office!=="undefined"){Office.onReady(()=>boot());}else{boot();}
 </script>
 </body>
 </html>
-
