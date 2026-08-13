@@ -123,25 +123,8 @@ const DOCS=[
    text:"Offizielle Dokumente aus dem Ausland über Ihre dortige Rente. Ausländische Renten sind Einnahmen und müssen vollständig deklariert werden. Sie erhalten die Dokumente von der jeweiligen ausländischen Rentenbehörde. Manchmal ist eine Übersetzung nötig. In diesem Fall informieren wir Sie darüber."},
 ];
 
-const PAL={
-  "Ausweis":{l:"#E6F1FB",m:"#378ADD",d:"#0C447C"},
-  "Wohnen":{l:"#E1F5EE",m:"#1D9E75",d:"#085041"},
-  "Bank & Post":{l:"#EAF3DE",m:"#639922",d:"#27500A"},
-  "AHV / IV":{l:"#EEEDFE",m:"#7F77DD",d:"#3C3489"},
-  "Versicherungen":{l:"#FAECE7",m:"#D85A30",d:"#712B13"},
-  "Steuern":{l:"#FAEEDA",m:"#EF9F27",d:"#633806"},
-  "Erbschaft & Schenkung":{l:"#FBEAF0",m:"#D4537E",d:"#72243E"},
-  "Immobilien":{l:"#F1EFE8",m:"#888780",d:"#444441"},
-  "Arbeit":{l:"#DCF5ED",m:"#0F9E71",d:"#085038"},
-  "Scheidung / Unterhalt":{l:"#FCEBEB",m:"#E24B4A",d:"#791F1F"},
-  "Sonstiges":{l:"#F1EFE8",m:"#B4B2A9",d:"#5F5E5A"}
-};
-const ICO={
-  "Ausweis":"ti-user","Wohnen":"ti-home","Bank & Post":"ti-credit-card",
-  "AHV / IV":"ti-heart","Versicherungen":"ti-shield","Steuern":"ti-receipt",
-  "Erbschaft & Schenkung":"ti-star","Immobilien":"ti-building","Arbeit":"ti-briefcase",
-  "Scheidung / Unterhalt":"ti-scale","Sonstiges":"ti-dots"
-};
+// Einheitliches Farbschema (keine Emojis, keine Kategorienfarben)
+const BG="#88cfff", FG="#0f0aa0";
 
 // Tag eines optionalen Inhaltssteuerelements in der Word-Vorlage,
 // das den Einfügeort markiert. Fehlt es, wird am Cursor eingefügt.
@@ -174,8 +157,8 @@ function App(){
       lines.push(g.kat);
       lines.push("─".repeat(Math.max(20,g.kat.length)));
       g.docs.forEach(d=>{
-        lines.push("• "+d.dok);
-        if(mode==="full")lines.push("  "+d.text);
+        lines.push("☐  "+d.dok);
+        if(mode==="full")lines.push("    "+d.text);
       });
     });
     return lines.join("\n");
@@ -184,10 +167,10 @@ function App(){
   const buildHtml=()=>{
     return grouped.map(g=>{
       const items=g.docs.map(d=>{
-        const body=mode==="full" ? `<div style="margin:2px 0 8px 22px;font-style:italic">${esc(d.text)}</div>` : "";
-        return `<li style="font-weight:bold">${esc(d.dok)}</li>${body}`;
+        const body=mode==="full" ? `<p style="margin:2px 0 8px 20px;font-style:italic;font-size:9pt">${esc(d.text)}</p>` : "";
+        return `<p style="font-weight:bold;margin:6px 0 0 0">☐&nbsp;&nbsp;${esc(d.dok)}</p>${body}`;
       }).join("");
-      return `<p style="font-weight:bold;border-bottom:1px solid #000;padding-bottom:2px;margin:14px 0 6px 0">${esc(g.kat)}</p><ul style="margin:0 0 8px 0;padding-left:22px">${items}</ul>`;
+      return `<p style="font-weight:bold;border-bottom:1px solid #000;padding-bottom:2px;margin:14px 0 6px 0">${esc(g.kat)}</p>${items}`;
     }).join("");
   };
 
@@ -242,22 +225,22 @@ function App(){
           for(let di=0; di<g.docs.length; di++){
             const d=g.docs[di];
 
-            // Titel als Bullet, fett
-            const title=anchor.insertParagraph(d.dok, Word.InsertLocation.after);
-            try{title.styleBuiltIn=Word.BuiltInStyleName.listParagraph;}catch(e){}
+            // Titel als normaler Absatz mit Kästchen-Prefix, fett
+            const title=anchor.insertParagraph("☐  "+d.dok, Word.InsertLocation.after);
+            try{title.styleBuiltIn=Word.BuiltInStyleName.normal;}catch(e){}
             title.font.bold=true;
             title.font.italic=false;
-            // Bullet-Zeichen als Fallback, falls der Listenstil nicht greift
-            // (echter Aufzählungs-Stil wird über styleBuiltIn versucht)
+            title.font.size=11;
             anchor=title.getRange(Word.RangeLocation.after);
 
-            // Beschreibung (kursiv), nur im Voll-Modus
+            // Beschreibung (kursiv, 9pt), leicht eingerückt; nur im Voll-Modus
             if(mode==="full"){
               const desc=anchor.insertParagraph(d.text, Word.InsertLocation.after);
               try{desc.styleBuiltIn=Word.BuiltInStyleName.normal;}catch(e){}
               desc.font.italic=true;
               desc.font.bold=false;
-              try{desc.paragraphFormat.spaceAfter=6;}catch(e){}
+              desc.font.size=9;
+              try{desc.paragraphFormat.leftIndent=20; desc.paragraphFormat.spaceAfter=6;}catch(e){}
               anchor=desc.getRange(Word.RangeLocation.after);
             }
           }
@@ -334,25 +317,23 @@ function App(){
         h('i',{className:`ti ti-${msg.type==='ok'?'check':'alert-triangle'}`,style:{fontSize:13,marginRight:5}}),msg.text)
     ),
 
-    // Kategorien-Liste
+    // Kategorien-Liste (einfarbig, ohne Icons)
     h('div',null,
       ...CATS.map(kat=>{
-        const p=PAL[kat]||PAL["Sonstiges"];
         const docs=DOCS.filter(d=>d.kat===kat);
         const open=!closed.has(kat);
         const cnt=docs.filter(d=>sel.has(d.id)).length;
         return h('div',{key:kat,style:{borderBottom:"0.5px solid var(--bd)"}},
-          h('div',{onClick:()=>toggleCat(kat),className:"cat-hdr",style:{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 12px",cursor:"pointer",borderLeft:`3px solid ${p.m}`,background:open?p.l+"55":"transparent"}},
+          h('div',{onClick:()=>toggleCat(kat),className:"cat-hdr",style:{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 12px",cursor:"pointer",borderLeft:`3px solid ${FG}`,background:open?BG:"transparent"}},
             h('div',{style:{display:"flex",alignItems:"center",gap:6}},
-              h('i',{className:`ti ${ICO[kat]||"ti-file"}`,style:{fontSize:14,color:p.d}}),
-              h('span',{style:{fontSize:12.5,fontWeight:600,color:p.d}},kat),
-              cnt>0&&h('span',{style:{fontSize:10,padding:"1px 6px",background:p.m,color:"#fff",borderRadius:99,lineHeight:1.7}},cnt)
+              h('span',{style:{fontSize:12.5,fontWeight:600,color:FG}},kat),
+              cnt>0&&h('span',{style:{fontSize:10,padding:"1px 6px",background:FG,color:"#fff",borderRadius:99,lineHeight:1.7}},cnt)
             ),
-            h('i',{className:`ti ti-chevron-${open?"up":"down"}`,style:{fontSize:13,color:p.d}})
+            h('i',{className:`ti ti-chevron-${open?"up":"down"}`,style:{fontSize:13,color:FG}})
           ),
           open&&h('div',null,...docs.map(doc=>
-            h('label',{key:doc.id,className:"cb-row",style:{display:"flex",alignItems:"flex-start",gap:9,padding:"7px 12px 7px 15px",cursor:"pointer",borderLeft:`3px solid ${sel.has(doc.id)?p.m:"transparent"}`,background:sel.has(doc.id)?p.l+"44":"transparent"}},
-              h('input',{type:"checkbox",checked:sel.has(doc.id),onChange:()=>toggle(doc.id),style:{marginTop:2,accentColor:p.m,flexShrink:0,width:15,height:15}}),
+            h('label',{key:doc.id,className:"cb-row",style:{display:"flex",alignItems:"flex-start",gap:9,padding:"7px 12px 7px 15px",cursor:"pointer",borderLeft:`3px solid ${sel.has(doc.id)?FG:"transparent"}`,background:sel.has(doc.id)?BG:"transparent"}},
+              h('input',{type:"checkbox",checked:sel.has(doc.id),onChange:()=>toggle(doc.id),style:{marginTop:2,accentColor:FG,flexShrink:0,width:15,height:15}}),
               h('span',{style:{fontSize:12.5,color:"var(--tx)",lineHeight:1.4}},doc.dok)
             )
           ))
