@@ -159,15 +159,16 @@ function App(){
   const buildInsertHtml=()=>{
     const P_TITLE=`font-family:Arial;font-size:11pt;font-weight:bold;margin:2pt 0 0 ${HANG};text-indent:-${HANG}`;
     const P_DESC =`font-family:Arial;font-size:9pt;font-style:italic;margin:2pt 0 8pt ${HANG}`;
-    // Vollbreite Linie: ein <hr> statt eines CSS-Absatzrahmens. Word wandelt <hr>
-    // zuverlässig in eine echte Absatzlinie über die volle Spaltenbreite um; ein
-    // border-bottom auf einem <p> wurde von Word im Kontext des Platzhalter-Feldes
-    // nur als schmale Zeichen-Unterstreichung übernommen.
-    const HR = `border:none;border-top:0.75pt solid #000000;margin:2pt 0 6pt 0`;
+    // Vollbreite Linie: eine unsichtbare 1x1-Tabelle mit Breite 100% und nur einer
+    // unteren Zellenrahmenlinie. Tabellen werden von Words HTML-Import sehr
+    // zuverlässig übernommen – zuverlässiger als ein CSS-Absatzrahmen, der im
+    // Kontext des Platzhalter-Feldes nur als schmale Zeichen-Unterstreichung
+    // ankam statt als Linie über die volle Breite.
+    const LINE = `<table style="width:100%;border-collapse:collapse;border:none;margin:2pt 0 6pt 0"><tr><td style="border:none;border-bottom:0.75pt solid #000000;padding:0;line-height:1pt;font-size:1pt">&nbsp;</td></tr></table>`;
     return grouped.map((g,gi)=>{
       const spaceTop = gi===0 ? 0 : 12;
       const head=`<p style="font-family:Arial;font-size:11pt;font-weight:bold;margin:${spaceTop}pt 0 0 0">${esc(g.kat)}</p>`;
-      const line=`<hr size="1" noshade color="#000000" style="${HR}">`;
+      const line=LINE;
       const body=g.docs.map(d=>{
         // Kästchen, ein Leerzeichen, ein echter Tabulatorsprung, dann der Titel.
         const t=`<p style="${P_TITLE}">☐ \t${esc(d.dok)}</p>`;
@@ -178,11 +179,12 @@ function App(){
     }).join("");
   };
 
-  // Erwartete Anzahl Absätze für die Vollständigkeits-Prüfung nach dem Einfügen
-  // (Kategorie-Überschrift + Linie, pro Dokument Titel [+ Beschreibung]).
-  const expectedParaCount = grouped.reduce(
-    (sum,g)=> sum + 2 + g.docs.length*(mode==="full"?2:1), 0
-  );
+  // Für die Vollständigkeits-Prüfung nach dem Einfügen: der Titel des letzten
+  // Dokuments in der letzten Kategorie muss im eingefügten Text vorkommen.
+  const lastGroup = grouped.length ? grouped[grouped.length-1] : null;
+  const lastDocTitle = lastGroup && lastGroup.docs.length
+    ? lastGroup.docs[lastGroup.docs.length-1].dok
+    : null;
 
     // ---------- Plain-Text (für Fallback-Copy) ----------
   const buildPlain=()=>{
@@ -223,13 +225,13 @@ function App(){
 
         // Vollständigkeits-Check: Word's HTML-Einfügung kann beim allerersten
         // Aufruf in einer Sitzung unvollständig ausfallen (bekannter Word/
-        // Office.js-Effekt). Ist die Absatzzahl zu niedrig, wird automatisch
-        // einmal nachgelegt, bevor der Nutzer etwas merkt.
-        const paras = insertedRange.paragraphs;
-        paras.load('items');
+        // Office.js-Effekt). Fehlt der Titel des letzten Dokuments im
+        // eingefügten Text, wird automatisch einmal nachgelegt.
+        insertedRange.load('text');
         await context.sync();
 
-        if(paras.items.length < expectedParaCount){
+        const incomplete = lastDocTitle && (!insertedRange.text || !insertedRange.text.includes(lastDocTitle));
+        if(incomplete){
           if(cc){
             cc.insertHtml(html, Word.InsertLocation.replace);
           }else{
