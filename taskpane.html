@@ -159,23 +159,22 @@ function App(){
   const buildInsertHtml=()=>{
     const P_TITLE=`font-family:Arial;font-size:11pt;font-weight:bold;margin:2pt 0 0 ${HANG};text-indent:-${HANG}`;
     const P_DESC =`font-family:Arial;font-size:9pt;font-style:italic;margin:2pt 0 8pt ${HANG}`;
-    // Vollbreite Linie: eine unsichtbare 1x1-Tabelle mit Breite 100% und nur einer
-    // unteren Zellenrahmenlinie. Tabellen werden von Words HTML-Import sehr
-    // zuverlässig übernommen – zuverlässiger als ein CSS-Absatzrahmen, der im
-    // Kontext des Platzhalter-Feldes nur als schmale Zeichen-Unterstreichung
-    // ankam statt als Linie über die volle Breite.
-    const LINE = `<table style="width:100%;border-collapse:collapse;border:none;margin:2pt 0 6pt 0"><tr><td style="border:none;border-bottom:0.75pt solid #000000;padding:0;line-height:1pt;font-size:1pt">&nbsp;</td></tr></table>`;
+    // Kategorie-Überschrift + Vollbreite-Linie in EINER Zelle: eine 1x1-Tabelle
+    // mit Breite 100%, deren Zelle den Kategorienamen enthält und eine untere
+    // Rahmenlinie hat. So sitzt die Linie direkt unter dem Text, ohne Abstand,
+    // und geht trotzdem über die volle Breite (zuverlässiger als ein separater
+    // CSS-Absatzrahmen, der im Kontext des Platzhalter-Feldes nur als schmale
+    // Zeichen-Unterstreichung ankam).
     return grouped.map((g,gi)=>{
       const spaceTop = gi===0 ? 0 : 12;
-      const head=`<p style="font-family:Arial;font-size:11pt;font-weight:bold;margin:${spaceTop}pt 0 0 0">${esc(g.kat)}</p>`;
-      const line=LINE;
+      const head=`<table style="width:100%;border-collapse:collapse;border:none;margin:${spaceTop}pt 0 6pt 0"><tr><td style="border:none;border-bottom:0.75pt solid #000000;padding:0 0 2pt 0;font-family:Arial;font-size:11pt;font-weight:bold">${esc(g.kat)}</td></tr></table>`;
       const body=g.docs.map(d=>{
         // Kästchen, ein Leerzeichen, ein echter Tabulatorsprung, dann der Titel.
         const t=`<p style="${P_TITLE}">☐ \t${esc(d.dok)}</p>`;
         const b=mode==="full" ? `<p style="${P_DESC}">${esc(d.text)}</p>` : "";
         return t+b;
       }).join("");
-      return head+line+body;
+      return head+body;
     }).join("");
   };
 
